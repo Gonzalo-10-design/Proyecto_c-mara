@@ -1,12 +1,12 @@
 import { Outlet, useLocation } from 'react-router-dom'
 import { Header, OpenMVSection } from '../componentes/Header'
 
-export default function Layout() {
+export default function Layout({ setIsAuthenticated }) {
   const location = useLocation();
 
   return (
     <>
-      <Header />
+      <Header setIsAuthenticated={setIsAuthenticated} />
       
       {/* Mostrar OpenMVSection solo en la ruta de inicio */}
       {location.pathname === "/" && <OpenMVSection />}
