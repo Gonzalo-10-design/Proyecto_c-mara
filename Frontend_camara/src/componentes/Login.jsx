@@ -1,5 +1,7 @@
+// Frontend_camara/src/componentes/Login.jsx
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import apiService from '../services/API_server';
 
 export default function Login({ setIsAuthenticated }) {
   const [isLogin, setIsLogin] = useState(true);
@@ -25,40 +27,33 @@ export default function Login({ setIsAuthenticated }) {
     setLoading(true);
     setError('');
 
-    const endpoint = isLogin ? '/api/login' : '/api/register';
-    const body = isLogin 
-      ? { username: formData.username, password: formData.password }
-      : formData;
-
     try {
-      const response = await fetch(`http://localhost:3001${endpoint}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(body),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Error en la operación');
-      }
-
       if (isLogin) {
-        // Guardar token en localStorage
-        localStorage.setItem('token', data.token);
-        localStorage.setItem('user', JSON.stringify(data.user));
+        // Login
+        const response = await apiService.login({
+          username: formData.username,
+          password: formData.password
+        });
+
+        console.log('Login exitoso:', response);
         setIsAuthenticated(true);
         navigate('/');
       } else {
-        // Después de registrarse, cambiar a modo login
+        // Registro
+        await apiService.register({
+          username: formData.username,
+          email: formData.email,
+          password: formData.password
+        });
+
+        // Cambiar a modo login después del registro
         setIsLogin(true);
         setFormData({ username: '', password: '', email: '' });
         alert('Usuario registrado exitosamente. Por favor inicia sesión.');
       }
     } catch (err) {
-      setError(err.message);
+      setError(err.message || 'Error en la operación');
+      console.error('Error:', err);
     } finally {
       setLoading(false);
     }
@@ -69,7 +64,7 @@ export default function Login({ setIsAuthenticated }) {
       <div className="max-w-md w-full bg-white rounded-lg shadow-2xl p-8">
         <div className="text-center mb-8">
           <img 
-            src="src/assets/imagenes/Logo_isateck.jpeg" 
+            src="/src/assets/imagenes/Logo_isateck.jpeg" 
             alt="Isateck Logo" 
             className="w-24 h-24 mx-auto mb-4 rounded-full"
           />
@@ -85,7 +80,8 @@ export default function Login({ setIsAuthenticated }) {
 
         {error && (
           <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-            {error}
+            <p className="font-medium">Error</p>
+            <p className="text-sm">{error}</p>
           </div>
         )}
 
@@ -137,7 +133,7 @@ export default function Login({ setIsAuthenticated }) {
               required
               minLength="6"
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2B7FFF] focus:border-transparent"
-              placeholder="Tu contraseña"
+              placeholder="Tu contraseña (mínimo 6 caracteres)"
             />
           </div>
 

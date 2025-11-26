@@ -1,3 +1,4 @@
+// Frontend_camara/src/router.jsx
 import { BrowserRouter, Route, Routes, Navigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import Inicio from './componentes/Inicio'
@@ -6,6 +7,7 @@ import Alertas from './componentes/Alertas'
 import Visualizacion from './componentes/Visualizacion'
 import Login from './componentes/Login'
 import Layout from './Layout/Layout'
+import apiService from './services/API_server'
 
 // Componente para proteger rutas
 function PrivateRoute({ children, isAuthenticated }) {
@@ -18,18 +20,30 @@ export default function AppRouter() {
 
   useEffect(() => {
     // Verificar si hay un token al cargar la aplicación
-    const token = localStorage.getItem('token');
-    if (token) {
-      // Aquí podrías validar el token con el backend
-      setIsAuthenticated(true);
-    }
-    setLoading(false);
+    const verifyAuth = async () => {
+      if (apiService.isAuthenticated()) {
+        try {
+          // Verificar si el token es válido
+          const isValid = await apiService.verifyToken();
+          setIsAuthenticated(isValid);
+        } catch (error) {
+          console.error('Error al verificar token:', error);
+          setIsAuthenticated(false);
+        }
+      }
+      setLoading(false);
+    };
+
+    verifyAuth();
   }, []);
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-2xl text-[#2B7FFF]">Cargando...</div>
+      <div className="min-h-screen flex items-center justify-center bg-gray-100">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-[#2B7FFF] border-t-transparent"></div>
+          <p className="mt-4 text-xl text-[#2B7FFF] font-semibold">Cargando...</p>
+        </div>
       </div>
     );
   }
