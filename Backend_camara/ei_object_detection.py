@@ -1,45 +1,48 @@
-# Edge Impulse - OpenMV FOMO Object Detection Example
-#
-# This work is licensed under the MIT license.
-# Copyright (c) 2013-2024 OpenMV LLC. All rights reserved.
-# https://github.com/openmv/openmv/blob/master/LICENSE
+# ei_object_detection.py - CORREGIDO PARA GRAYSCALE
+# Edge Impulse - OpenMV FOMO Object Detection con escala de grises
 
 import sensor, image, time, ml, math, uos, gc
 
-sensor.reset()                         # Reset and initialize the sensor.
-sensor.set_pixformat(sensor.GRAYSCALE)    # Set pixel format to RGB565 (or GRAYSCALE)
-sensor.set_framesize(sensor.QVGA)      # Set frame size to QVGA (320x240)
-sensor.set_windowing((240, 240))       # Set 240x240 window.
-sensor.skip_frames(time=2000)          # Let the camera adjust.
+# Configuración del sensor - ESCALA DE GRISES
+sensor.reset()
+sensor.set_pixformat(sensor.GRAYSCALE)    # *** CAMBIADO A GRAYSCALE ***
+sensor.set_framesize(sensor.QVGA)         # 320x240
+sensor.set_windowing((240, 240))          # Ventana 240x240
+sensor.skip_frames(time=2000)             # Esperar estabilización
 
 net = None
 labels = None
 min_confidence = 0.5
 
+# Cargar el modelo entrenado
 try:
-    # load the model, alloc the model file on the heap if we have at least 64K free after loading
     net = ml.Model("trained.tflite", load_to_fb=uos.stat('trained.tflite')[6] > (gc.mem_free() - (64*1024)))
+    print("✓ Modelo cargado exitosamente")
 except Exception as e:
     raise Exception('Failed to load "trained.tflite", did you copy the .tflite and labels.txt file onto the mass-storage device? (' + str(e) + ')')
 
+# Cargar etiquetas
 try:
     labels = [line.rstrip('\n') for line in open("labels.txt")]
+    print("✓ Etiquetas cargadas:", labels)
 except Exception as e:
     raise Exception('Failed to load "labels.txt", did you copy the .tflite and labels.txt file onto the mass-storage device? (' + str(e) + ')')
 
-colors = [ # Add more colors if you are detecting more than 7 types of classes at once.
-    (255,   0,   0),
-    (  0, 255,   0),
-    (255, 255,   0),
-    (  0,   0, 255),
-    (255,   0, 255),
-    (  0, 255, 255),
-    (255, 255, 255),
+# Colores para visualización (aunque estemos en grayscale, se pueden usar para dibujar)
+colors = [
+    (255,   0,   0),  # Rojo
+    (  0, 255,   0),  # Verde
+    (255, 255,   0),  # Amarillo
+    (  0,   0, 255),  # Azul
+    (255,   0, 255),  # Magenta
+    (  0, 255, 255),  # Cyan
+    (255, 255, 255),  # Blanco
 ]
 
 threshold_list = [(math.ceil(min_confidence * 255), 255)]
 
 def fomo_post_process(model, inputs, outputs):
+    """Procesar las salidas del modelo FOMO"""
     ob, oh, ow, oc = model.output_shape[0]
 
     x_scale = inputs[0].roi[2] / ow
@@ -70,21 +73,49 @@ def fomo_post_process(model, inputs, outputs):
             l[i].append((x, y, w, h, score))
     return l
 
+print("✓ Sistema iniciado - Esperando detecciones...")
+print("✓ Modo: GRAYSCALE")
+print("=" * 50)
+
 clock = time.clock()
+
 while(True):
     clock.tick()
 
+    # Capturar imagen en escala de grises
     img = sensor.snapshot()
 
-    for i, detection_list in enumerate(net.predict([img], callback=fomo_post_process)):
-        if i == 0: continue  # background class
-        if len(detection_list) == 0: continue  # no detections for this class?
+    # Realizar predicción
+    detections_found = False
     
+    for i, detection_list in enumerate(net.predict([img], callback=fomo_post_process)):
+        if i == 0: continue  # Saltar clase background
+        if len(detection_list) == 0: continue  # No hay detecciones para esta clase
+        
+        detections_found = True
         print("********** %s **********" % labels[i])
+        
         for x, y, w, h, score in detection_list:
             center_x = math.floor(x + (w / 2))
             center_y = math.floor(y + (h / 2))
-            print(f"x {center_x}\ty {center_y}\tscore {score}")
-            img.draw_circle((center_x, center_y, 12), color=colors[i])
+            
+            # Imprimir detección
+            print(f"x {center_x}\ty {center_y}\tscore {score:.3f}")
+            
+            # Dibujar círculo en la detección (visible incluso en grayscale)
+            img.draw_circle((center_x, center_y, 12), color=colors[i], thickness=2)
+            
+            # Dibujar etiqueta
+            img.draw_string(center_x - 20, center_y - 30, labels[i], color=colors[i])
 
-    print(clock.fps(), "fps", end="\n\n")
+    # Mostrar FPS
+    fps = clock.fps()
+    print(f"FPS: {fps:.2f}")
+    
+    if not detections_found:
+        print("[Sin detecciones]")
+    
+    print("")  # Línea en blanco para separar frames
+    
+    # Pequeña pausa para evitar sobrecarga
+    time.sleep_ms(100)

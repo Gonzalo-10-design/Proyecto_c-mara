@@ -1,3 +1,4 @@
+// Backend_camara/controllers/authController.js
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { db } from '../config/database.js';
@@ -40,6 +41,7 @@ export const register = async (req, res) => {
           });
         }
         
+        console.log(`✓ Usuario registrado: ${username}`);
         res.status(201).json({ 
           message: 'Usuario registrado exitosamente',
           userId: this.lastID 
@@ -52,9 +54,11 @@ export const register = async (req, res) => {
   }
 };
 
-// Login de usuario
+// Login de usuario - CORREGIDO
 export const login = (req, res) => {
   const { username, password } = req.body;
+
+  console.log(`[LOGIN] Intento de login para usuario: ${username}`);
 
   if (!username || !password) {
     return res.status(400).json({ 
@@ -67,16 +71,23 @@ export const login = (req, res) => {
     [username],
     async (err, user) => {
       if (err) {
-        console.error('Error en login:', err);
+        console.error('[LOGIN ERROR] Error en la base de datos:', err);
         return res.status(500).json({ error: 'Error en el servidor' });
       }
 
       if (!user) {
+        console.log(`[LOGIN] Usuario no encontrado: ${username}`);
         return res.status(401).json({ error: 'Credenciales inválidas' });
       }
 
+      console.log(`[LOGIN] Usuario encontrado: ${username}`);
+      console.log(`[LOGIN] Hash en BD: ${user.password.substring(0, 20)}...`);
+
       try {
+        // Comparar la contraseña ingresada con el hash almacenado
         const validPassword = await bcrypt.compare(password, user.password);
+        
+        console.log(`[LOGIN] Validación de contraseña: ${validPassword ? 'ÉXITO' : 'FALLÓ'}`);
         
         if (!validPassword) {
           return res.status(401).json({ error: 'Credenciales inválidas' });
@@ -89,6 +100,8 @@ export const login = (req, res) => {
           { expiresIn: '24h' }
         );
 
+        console.log(`✓ Login exitoso para: ${username}`);
+
         res.json({
           message: 'Login exitoso',
           token,
@@ -99,7 +112,7 @@ export const login = (req, res) => {
           }
         });
       } catch (error) {
-        console.error('Error al verificar contraseña:', error);
+        console.error('[LOGIN ERROR] Error al verificar contraseña:', error);
         res.status(500).json({ error: 'Error en el servidor' });
       }
     }
