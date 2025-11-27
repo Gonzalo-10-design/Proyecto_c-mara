@@ -3,8 +3,19 @@
 
 import sensor, image, time, ml, math, uos, gc
 
+# Intentar resetear el sensor. Si falla, imprimimos una pista de depuración
+# y mantenemos el dispositivo en un bucle de espera para que puedas leer
+# la salida de la consola desde OpenMV IDE sin que la placa se reinicie.
+try:
+    sensor.reset()
+except Exception as e:
+    print("✗ Error: no se detectó el sensor de imagen. ¿El módulo de cámara está conectado?")
+    print("Detalles:", e)
+    # Mantener la placa en un bucle de espera para depuración (no re-lanzar excepción)
+    while True:
+        time.sleep_ms(1000)
+
 # Configuración del sensor - ESCALA DE GRISES
-sensor.reset()
 sensor.set_pixformat(sensor.GRAYSCALE)    # *** CAMBIADO A GRAYSCALE ***
 sensor.set_framesize(sensor.QVGA)         # 320x240
 sensor.set_windowing((240, 240))          # Ventana 240x240
@@ -118,4 +129,4 @@ while(True):
     print("")  # Línea en blanco para separar frames
     
     # Pequeña pausa para evitar sobrecarga
-    time.sleep_ms(100)
+    time.sleep_ms(10000) # 10 segundos entre capturas

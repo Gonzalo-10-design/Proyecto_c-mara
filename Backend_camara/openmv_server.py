@@ -9,15 +9,7 @@ import time
 import websockets
 import json
 import serial
-try:
-    import cv2
-except Exception:
-    cv2 = None
 
-try:
-    import numpy as np
-except Exception:
-    np = None
 from threading import Thread
 import base64
 from datetime import datetime

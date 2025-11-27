@@ -28,7 +28,7 @@ export const register = async (req, res) => {
     db.run(
       'INSERT INTO usuarios (username, password, email) VALUES (?, ?, ?)',
       [username, hashedPassword, email],
-      function(err) {
+      function(err) {           
         if (err) {
           if (err.message.includes('UNIQUE')) {
             return res.status(400).json({ 
