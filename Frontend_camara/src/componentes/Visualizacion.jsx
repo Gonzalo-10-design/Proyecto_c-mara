@@ -9,10 +9,14 @@ export default function Visualizacion() {
     percentage: 0,
     label: 'Desconocido',
     fps: 0,
-    detection: null
+    detection: null,
+    timestamp: null
   });
   const [connectionStatus, setConnectionStatus] = useState('disconnected');
+  const [alerts, setAlerts] = useState([]);
+  const [history, setHistory] = useState([]);
   const wsRef = useRef(null);
+  const reconnectTimeoutRef = useRef(null);
 
   // Conectar al WebSocket
   useEffect(() => {
@@ -22,64 +26,139 @@ export default function Visualizacion() {
       if (wsRef.current) {
         wsRef.current.close();
       }
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+      }
     };
   }, []);
 
   const connectWebSocket = () => {
     try {
+      // Cambiar a la IP de tu servidor si es necesario
       const ws = new WebSocket('ws://localhost:8765');
       
       ws.onopen = () => {
-        console.log('Conectado al servidor OpenMV');
+        console.log('✓ Conectado al servidor OpenMV');
         setIsConnected(true);
         setConnectionStatus('connected');
+        
+        // Solicitar estado actual
+        ws.send(JSON.stringify({ command: 'get_status' }));
       };
 
       ws.onmessage = (event) => {
-        const data = JSON.parse(event.data);
-        
-        if (data.type === 'tank_data') {
-          setTankData(data.data);
-        } else if (data.type === 'status') {
-          console.log('Status:', data.message);
+        try {
+          const data = JSON.parse(event.data);
+          
+          switch(data.type) {
+            case 'connection':
+              console.log('Mensaje de conexión:', data.message);
+              break;
+              
+            case 'tank_data':
+              setTankData(data.data);
+              break;
+              
+            case 'alert':
+              addAlert(data.data);
+              break;
+              
+            case 'status':
+              setIsMonitoring(data.is_monitoring);
+              if (data.data) {
+                setTankData(data.data);
+              }
+              break;
+              
+            case 'response':
+              console.log(`Respuesta ${data.command}:`, data.message);
+              if (data.command === 'start') {
+                setIsMonitoring(data.success);
+              }
+              break;
+              
+            case 'history':
+              setHistory(data.data);
+              break;
+              
+            default:
+              console.log('Mensaje no reconocido:', data);
+          }
+        } catch (error) {
+          console.error('Error procesando mensaje:', error);
         }
       };
 
       ws.onerror = (error) => {
-        console.error('Error WebSocket:', error);
+        console.error('❌ Error WebSocket:', error);
         setConnectionStatus('error');
       };
 
       ws.onclose = () => {
-        console.log('Desconectado del servidor OpenMV');
+        console.log('✗ Desconectado del servidor OpenMV');
         setIsConnected(false);
         setConnectionStatus('disconnected');
+        setIsMonitoring(false);
         
         // Reconectar después de 3 segundos
-        setTimeout(connectWebSocket, 3000);
+        reconnectTimeoutRef.current = setTimeout(connectWebSocket, 3000);
       };
 
       wsRef.current = ws;
     } catch (error) {
-      console.error('Error al conectar:', error);
+      console.error('❌ Error al conectar:', error);
       setConnectionStatus('error');
+      reconnectTimeoutRef.current = setTimeout(connectWebSocket, 3000);
     }
   };
 
   const sendCommand = (command) => {
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify({ command }));
+      return true;
     }
+    console.error('WebSocket no está conectado');
+    return false;
   };
 
   const handleStartMonitoring = () => {
-    sendCommand('start');
-    setIsMonitoring(true);
+    if (sendCommand('start')) {
+      console.log('📡 Iniciando monitoreo...');
+    }
   };
 
   const handleStopMonitoring = () => {
-    sendCommand('stop');
-    setIsMonitoring(false);
+    if (sendCommand('stop')) {
+      console.log('⏸️ Deteniendo monitoreo...');
+      setIsMonitoring(false);
+    }
+  };
+
+  const addAlert = (alert) => {
+    setAlerts(prev => {
+      // Evitar duplicados
+      const exists = prev.some(a => 
+        a.message === alert.message && 
+        Math.abs(new Date(a.timestamp) - new Date(alert.timestamp)) < 5000
+      );
+      
+      if (exists) return prev;
+      
+      // Mantener solo las últimas 10 alertas
+      const newAlerts = [alert, ...prev].slice(0, 10);
+      return newAlerts;
+    });
+
+    // Auto-eliminar alerta después de 10 segundos para alertas informativas
+    if (alert.level === 'info') {
+      setTimeout(() => {
+        setAlerts(prev => prev.filter(a => a !== alert));
+      }, 10000);
+    }
+  };
+
+  const clearAlerts = () => {
+    setAlerts([]);
   };
 
   const getStatusColor = () => {
@@ -101,29 +180,48 @@ export default function Visualizacion() {
   };
 
   const getLevelColor = (percentage) => {
-    if (percentage >= 75) return 'text-red-600';
+    if (percentage >= 90) return 'text-red-600';
+    if (percentage >= 75) return 'text-orange-600';
     if (percentage >= 50) return 'text-yellow-600';
     if (percentage >= 25) return 'text-blue-600';
     return 'text-green-600';
   };
 
   const getTankFillHeight = (percentage) => {
-    return `${percentage}%`;
+    return `${Math.min(percentage, 100)}%`;
+  };
+
+  const getAlertIcon = (level) => {
+    switch(level) {
+      case 'critical': return 'fa-exclamation-circle';
+      case 'warning': return 'fa-exclamation-triangle';
+      case 'info': return 'fa-info-circle';
+      default: return 'fa-bell';
+    }
+  };
+
+  const getAlertColor = (level) => {
+    switch(level) {
+      case 'critical': return 'bg-red-100 border-red-500 text-red-900';
+      case 'warning': return 'bg-yellow-100 border-yellow-500 text-yellow-900';
+      case 'info': return 'bg-blue-100 border-blue-500 text-blue-900';
+      default: return 'bg-gray-100 border-gray-500 text-gray-900';
+    }
   };
 
   return (
     <div className="w-full min-h-screen bg-gray-100 py-8 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-7xl mx-auto space-y-6">
         
         {/* Header con controles */}
-        <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+        <div className="bg-white rounded-lg shadow-lg p-6">
           <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
             <div className="flex items-center gap-4">
               <h1 className="text-3xl font-extrabold text-[#0f3d28]">
                 Monitoreo OpenMV Cam RT1062
               </h1>
               <div className="flex items-center gap-2">
-                <div className={`w-3 h-3 rounded-full ${getStatusColor()} animate-pulse`}></div>
+                <div className={`w-3 h-3 rounded-full ${getStatusColor()} ${isConnected ? 'animate-pulse' : ''}`}></div>
                 <span className="text-sm font-medium text-gray-700">{getStatusText()}</span>
               </div>
             </div>
@@ -132,15 +230,15 @@ export default function Visualizacion() {
               <button
                 onClick={handleStartMonitoring}
                 disabled={!isConnected || isMonitoring}
-                className="bg-green-500 hover:bg-green-600 disabled:bg-gray-400 text-white px-6 py-3 rounded-lg font-semibold transition duration-300 flex items-center gap-2"
+                className="bg-green-500 hover:bg-green-600 disabled:bg-gray-400 text-white px-6 py-3 rounded-lg font-semibold transition duration-300 flex items-center gap-2 disabled:cursor-not-allowed"
               >
                 <i className="fas fa-play"></i>
-                Iniciar
+                {isMonitoring ? 'Monitoreando...' : 'Iniciar'}
               </button>
               <button
                 onClick={handleStopMonitoring}
                 disabled={!isConnected || !isMonitoring}
-                className="bg-red-500 hover:bg-red-600 disabled:bg-gray-400 text-white px-6 py-3 rounded-lg font-semibold transition duration-300 flex items-center gap-2"
+                className="bg-red-500 hover:bg-red-600 disabled:bg-gray-400 text-white px-6 py-3 rounded-lg font-semibold transition duration-300 flex items-center gap-2 disabled:cursor-not-allowed"
               >
                 <i className="fas fa-stop"></i>
                 Detener
@@ -148,6 +246,47 @@ export default function Visualizacion() {
             </div>
           </div>
         </div>
+
+        {/* Alertas */}
+        {alerts.length > 0 && (
+          <div className="bg-white rounded-lg shadow-lg p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-[#0f3d28] flex items-center gap-2">
+                <i className="fas fa-bell"></i>
+                Alertas del Sistema
+              </h2>
+              <button
+                onClick={clearAlerts}
+                className="text-sm text-gray-600 hover:text-red-600 transition duration-200"
+              >
+                <i className="fas fa-times-circle mr-1"></i>
+                Limpiar todo
+              </button>
+            </div>
+            <div className="space-y-3 max-h-64 overflow-y-auto">
+              {alerts.map((alert, index) => (
+                <div
+                  key={index}
+                  className={`flex items-start gap-3 p-4 rounded-lg border-l-4 ${getAlertColor(alert.level)} animate-fadeIn`}
+                >
+                  <i className={`fas ${getAlertIcon(alert.level)} text-xl mt-1`}></i>
+                  <div className="flex-1">
+                    <p className="font-semibold">{alert.message}</p>
+                    <p className="text-xs mt-1 opacity-75">
+                      {new Date(alert.timestamp).toLocaleString('es-CO')}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setAlerts(prev => prev.filter((_, i) => i !== index))}
+                    className="text-sm opacity-50 hover:opacity-100"
+                  >
+                    <i className="fas fa-times"></i>
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Grid principal */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -171,11 +310,11 @@ export default function Visualizacion() {
                   </div>
                   
                   {/* Marcadores de nivel */}
-                  <div className="absolute top-0 left-0 right-0 h-full flex flex-col justify-between py-2">
+                  <div className="absolute top-0 left-0 right-0 h-full flex flex-col justify-between py-2 pointer-events-none">
                     {[100, 75, 50, 25, 0].map((level) => (
                       <div key={level} className="flex items-center justify-between px-2">
                         <div className="w-4 h-0.5 bg-gray-600"></div>
-                        <span className="text-xs font-bold text-gray-700">{level}%</span>
+                        <span className="text-xs font-bold text-gray-700 bg-white px-1 rounded">{level}%</span>
                       </div>
                     ))}
                   </div>
@@ -191,21 +330,29 @@ export default function Visualizacion() {
                   </p>
                 </div>
                 
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <div className="flex justify-between items-center mb-2">
+                <div className="bg-gray-50 rounded-lg p-4 space-y-2">
+                  <div className="flex justify-between items-center">
                     <span className="text-sm text-gray-600">Etiqueta:</span>
                     <span className="font-semibold text-[#0f3d28]">{tankData.label}</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-gray-600">FPS:</span>
-                    <span className="font-semibold text-[#0f3d28]">{tankData.fps?.toFixed(1) || 0}</span>
+                    <span className="font-semibold text-[#0f3d28]">
+                      {tankData.fps?.toFixed(1) || 0}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">Estado:</span>
+                    <span className={`font-semibold ${isMonitoring ? 'text-green-600' : 'text-gray-600'}`}>
+                      {isMonitoring ? '🟢 Activo' : '⚪ Inactivo'}
+                    </span>
                   </div>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Panel de datos y gráficas */}
+          {/* Panel de datos */}
           <div className="lg:col-span-2 space-y-6">
             
             {/* Datos de detección */}
@@ -233,13 +380,14 @@ export default function Visualizacion() {
                 </div>
               ) : (
                 <div className="text-center text-gray-500 py-8">
-                  <i className="fas fa-search text-4xl mb-3"></i>
-                  <p>No hay detecciones activas</p>
+                  <i className="fas fa-search text-4xl mb-3 opacity-30"></i>
+                  <p className="font-medium">No hay detecciones activas</p>
+                  <p className="text-sm mt-1">Inicia el monitoreo para ver datos en tiempo real</p>
                 </div>
               )}
             </div>
 
-            {/* Historial de niveles */}
+            {/* Información del Sistema */}
             <div className="bg-white rounded-lg shadow-lg p-6">
               <h2 className="text-xl font-bold text-[#0f3d28] mb-4">
                 Información del Sistema
@@ -255,7 +403,7 @@ export default function Visualizacion() {
                     </div>
                   </div>
                   <div className={`px-3 py-1 rounded-full text-sm font-semibold ${isMonitoring ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
-                    {isMonitoring ? 'Activo' : 'Inactivo'}
+                    {isMonitoring ? '✓ Activo' : '○ Inactivo'}
                   </div>
                 </div>
 
@@ -264,7 +412,7 @@ export default function Visualizacion() {
                     <i className="fas fa-microchip text-2xl text-[#1ea34a]"></i>
                     <div>
                       <p className="font-semibold text-gray-800">Modelo de IA</p>
-                      <p className="text-sm text-gray-600">Detección de nivel por visión térmica</p>
+                      <p className="text-sm text-gray-600">FOMO - Detección térmica</p>
                     </div>
                   </div>
                 </div>
@@ -289,18 +437,18 @@ export default function Visualizacion() {
         </div>
 
         {/* Instrucciones */}
-        <div className="mt-6 bg-blue-50 border-l-4 border-blue-500 p-4 rounded-lg">
+        <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-lg">
           <div className="flex items-start gap-3">
             <i className="fas fa-info-circle text-blue-500 text-xl mt-1"></i>
             <div>
               <h3 className="font-bold text-blue-900 mb-2">Instrucciones de uso:</h3>
-              <ul className="text-sm text-blue-800 space-y-1">
-                <li>1. Asegúrate de que la OpenMV Cam esté conectada al puerto USB</li>
-                <li>2. Verifica que el servidor backend esté ejecutándose (python openmv_server.py)</li>
-                <li>3. Haz clic en "Iniciar" para comenzar el monitoreo en tiempo real</li>
-                <li>4. Los datos se actualizarán automáticamente conforme se detecten niveles</li>
-                <li>5. Usa "Detener" cuando termines el monitoreo</li>
-              </ul>
+              <ol className="text-sm text-blue-800 space-y-1 list-decimal list-inside">
+                <li>Conecta la OpenMV Cam RT1062 al puerto USB</li>
+                <li>Ejecuta <code className="bg-blue-100 px-2 py-0.5 rounded">python openmv_server.py</code> en el backend</li>
+                <li>Ejecuta el script de detección en la OpenMV desde OpenMV IDE</li>
+                <li>Haz clic en "Iniciar" para comenzar el monitoreo</li>
+                <li>Los datos se actualizarán automáticamente en tiempo real</li>
+              </ol>
             </div>
           </div>
         </div>
