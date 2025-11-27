@@ -1,0 +1,11 @@
+# Requisitos útiles para soporte PC/OpenMV (instalar en un entorno virtual)
+# Este archivo puede ampliarse según herramientas específicas que uses
+pyserial>=3.5
+numpy>=1.24
+opencv-python>=4.7.0
+Pillow>=10.0
+PyYAML>=6.0
+# WebSocket server
+websockets>=11.0
+# edge-impulse SDKs are mostly node/npm; omit heavy runtimes like tensorflow unless needed
+# Add any additional packages below
