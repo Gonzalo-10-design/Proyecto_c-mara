@@ -1,6 +1,6 @@
 """
-Backend_camara/openmv_server.py - Versión con SQLite
-Guarda datos en base de datos y limpia automáticamente cada 7 días
+Backend_camara/openmv_server.py - Version con SQLite - CORREGIDO
+Guarda datos en base de datos y limpia automaticamente cada 7 dias
 """
 
 import asyncio
@@ -51,13 +51,13 @@ class DatabaseManager:
             )
         ''')
         
-        # Índices para mejorar consultas
+        # Indices para mejorar consultas
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_readings_timestamp ON readings(timestamp)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_alerts_timestamp ON alerts(timestamp)')
         
         conn.commit()
         conn.close()
-        print("✓ Base de datos inicializada")
+        print("Base de datos inicializada")
     
     def save_reading(self, data):
         """Guardar lectura en la base de datos"""
@@ -81,6 +81,7 @@ class DatabaseManager:
             
             conn.commit()
             conn.close()
+            print(f"Lectura guardada: {data.get('percentage')}%")
         except Exception as e:
             print(f"Error guardando lectura: {e}")
     
@@ -122,14 +123,16 @@ class DatabaseManager:
             rows = cursor.fetchall()
             conn.close()
             
-            # Invertir para orden cronológico
-            return [dict(row) for row in reversed(rows)]
+            # Invertir para orden cronologico
+            result = [dict(row) for row in reversed(rows)]
+            print(f"Recuperadas {len(result)} lecturas de la BD")
+            return result
         except Exception as e:
             print(f"Error obteniendo lecturas: {e}")
             return []
     
     def cleanup_old_data(self, days=7):
-        """Eliminar datos antiguos (mantener solo últimos N días)"""
+        """Eliminar datos antiguos (mantener solo ultimos N dias)"""
         try:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
@@ -146,7 +149,7 @@ class DatabaseManager:
             conn.close()
             
             if deleted_readings > 0 or deleted_alerts > 0:
-                print(f"✓ Limpieza: {deleted_readings} lecturas y {deleted_alerts} alertas eliminadas")
+                print(f"Limpieza: {deleted_readings} lecturas y {deleted_alerts} alertas eliminadas")
         except Exception as e:
             print(f"Error en limpieza: {e}")
 
@@ -169,18 +172,18 @@ class OpenMVServer:
         self.data_lock = Lock()
         self.loop = None
         self.serial_thread = None
-        self.history = deque(maxlen=100)  # Cache en memoria
+        self.history = deque(maxlen=100)
         self.alerts_sent = set()
         
         # Base de datos
         self.db = DatabaseManager()
         
-        # Limpieza automática cada 24 horas
+        # Limpieza automatica cada 24 horas
         self.cleanup_interval = 86400
         self.last_cleanup = time.time()
         
     def find_openmv_port(self):
-        """Buscar automáticamente el puerto de OpenMV"""
+        """Buscar automaticamente el puerto de OpenMV"""
         ports = serial.tools.list_ports.comports()
         
         for port in ports:
@@ -198,14 +201,14 @@ class OpenMVServer:
         return None
    
     def connect_openmv(self, port=None):
-        """Conectar con la cámara OpenMV"""
+        """Conectar con la camara OpenMV"""
         try:
             if port is None:
                 port = self.find_openmv_port()
             
             if port is None:
                 print("\n" + "="*60)
-                print("ERROR: No se detectó OpenMV")
+                print("ERROR: No se detecto OpenMV")
                 print("="*60)
                 return False
             
@@ -228,15 +231,15 @@ class OpenMVServer:
             self.serial_connection.reset_output_buffer()
             
             time.sleep(1)
-            print(f"✓ Conectado en {port}\n")
+            print(f"Conectado en {port}\n")
             return True
             
         except Exception as e:
-            print(f"❌ Error al conectar: {e}\n")
+            print(f"Error al conectar: {e}\n")
             return False
     
     def disconnect_openmv(self):
-        """Desconectar la cámara OpenMV"""
+        """Desconectar la camara OpenMV"""
         self.is_monitoring = False
         
         if self.serial_connection and self.serial_connection.is_open:
@@ -259,7 +262,9 @@ class OpenMVServer:
                         self.latest_data['timestamp'] = datetime.now().isoformat()
                         data_updated = True
                         
-                        # Agregar a historial en memoria
+                        print(f"Nivel detectado: {percentage}%")
+                        
+                        # Agregar a historico en memoria
                         self.history.append({
                             'percentage': percentage,
                             'timestamp': datetime.now().isoformat()
@@ -268,8 +273,8 @@ class OpenMVServer:
                         # Guardar en base de datos
                         self.db.save_reading(self.latest_data)
                         
-                    except (IndexError, ValueError):
-                        pass
+                    except (IndexError, ValueError) as e:
+                        print(f"Error parseando nivel: {e}")
             
             elif line.startswith("x "):
                 parts = line.split("\t")
@@ -285,16 +290,16 @@ class OpenMVServer:
                             'score': score
                         }
                         data_updated = True
-                    except (IndexError, ValueError):
-                        pass
+                    except (IndexError, ValueError) as e:
+                        print(f"Error parseando deteccion: {e}")
             
             elif line.startswith("FPS:"):
                 try:
                     fps = float(line.split(":")[1].strip())
                     self.latest_data['fps'] = fps
                     data_updated = True
-                except (IndexError, ValueError):
-                    pass
+                except (IndexError, ValueError) as e:
+                    print(f"Error parseando FPS: {e}")
         
         return data_updated
     
@@ -327,12 +332,12 @@ class OpenMVServer:
             self.alerts_sent.add('100%')
             self.db.save_alert(alert)
         
-        # Alerta de sin detección
+        # Alerta de sin deteccion
         if self.latest_data.get('detection') is None and self.is_monitoring:
             if 'no_detection' not in self.alerts_sent:
                 alert = {
                     'level': 'info',
-                    'message': 'Sin detección - Verifica la posición de la cámara',
+                    'message': 'Sin deteccion - Verifica la posicion de la camara',
                     'percentage': 0,
                     'timestamp': datetime.now().isoformat()
                 }
@@ -355,7 +360,7 @@ class OpenMVServer:
         print("Iniciando lectura de datos...")
         
         while self.is_running:
-            # Limpieza automática
+            # Limpieza automatica
             if time.time() - self.last_cleanup > self.cleanup_interval:
                 self.db.cleanup_old_data(days=7)
                 self.last_cleanup = time.time()
@@ -402,11 +407,14 @@ class OpenMVServer:
                     'data': self.latest_data
                 })
             
+            print(f"Broadcasting: {self.latest_data.get('percentage')}%")
+            
             disconnected = set()
             for client in self.clients:
                 try:
                     await client.send(message)
                 except Exception as e:
+                    print(f"Error enviando a cliente: {e}")
                     disconnected.add(client)
             
             self.clients -= disconnected
@@ -448,7 +456,7 @@ class OpenMVServer:
             self.clients -= disconnected
     
     async def handle_client(self, websocket):
-        """Manejar conexión de cliente WebSocket"""
+        """Manejar conexion de cliente WebSocket"""
         client_id = f"{websocket.remote_address[0]}:{websocket.remote_address[1]}"
         print(f"Cliente conectado: {client_id}")
         
@@ -462,10 +470,19 @@ class OpenMVServer:
                 'connected': self.serial_connection is not None and self.serial_connection.is_open
             }))
             
+            # Enviar datos actuales
             if self.latest_data['timestamp']:
                 await websocket.send(json.dumps({
                     'type': 'tank_data',
                     'data': self.latest_data
+                }))
+            
+            # Enviar historico desde BD
+            history = self.db.get_recent_readings(limit=100)
+            if history:
+                await websocket.send(json.dumps({
+                    'type': 'history',
+                    'data': history
                 }))
             
             async for message in websocket:
@@ -499,7 +516,7 @@ class OpenMVServer:
                         }))
                 
                 except json.JSONDecodeError:
-                    print(f"Mensaje no válido")
+                    print(f"Mensaje no valido")
                 except Exception as e:
                     print(f"Error: {e}")
         
@@ -542,7 +559,7 @@ class OpenMVServer:
         print("="*50)
         print(f"Puerto: ws://{host}:{port}")
         print(f"Base de datos: openmv_data.db")
-        print(f"Limpieza automática: cada 24h (mantiene 7 días)")
+        print(f"Limpieza automatica: cada 24h (mantiene 7 dias)")
         print("="*50 + "\n")
         
         async with websockets.serve(self.handle_client, host, port):

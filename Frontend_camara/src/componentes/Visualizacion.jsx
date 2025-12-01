@@ -1,4 +1,4 @@
-// Frontend_camara/src/componentes/Visualizacion.jsx
+// Frontend_camara/src/componentes/Visualizacion.jsx - CORREGIDO
 import { useState, useEffect, useRef } from 'react';
 
 export default function Visualizacion() {
@@ -33,9 +33,10 @@ export default function Visualizacion() {
     };
   }, []);
 
-  // Dibujar gráfica cuando cambie el histórico
+  // Dibujar grafica cuando cambie el historico
   useEffect(() => {
     if (history.length > 0 && canvasRef.current) {
+      console.log('Dibujando grafica con', history.length, 'puntos');
       drawChart();
     }
   }, [history]);
@@ -45,11 +46,11 @@ export default function Visualizacion() {
       const ws = new WebSocket('ws://localhost:8765');
       
       ws.onopen = () => {
-        console.log('✓ Conectado al servidor OpenMV');
+        console.log('Conectado al servidor OpenMV');
         setIsConnected(true);
         setConnectionStatus('connected');
         
-        // Solicitar estado actual e histórico
+        // Solicitar estado actual e historico
         ws.send(JSON.stringify({ command: 'get_status' }));
         ws.send(JSON.stringify({ command: 'get_history' }));
       };
@@ -57,22 +58,27 @@ export default function Visualizacion() {
       ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
+          console.log('Mensaje recibido:', data.type, data);
           
           switch(data.type) {
             case 'connection':
-              console.log('Mensaje de conexión:', data.message);
+              console.log('Mensaje de conexion:', data.message);
               break;
               
             case 'tank_data':
+              console.log('Datos del tanque:', data.data);
               setTankData(data.data);
-              // Agregar al histórico local
-              if (data.data.percentage > 0) {
+              
+              // Agregar al historico local solo si tiene porcentaje valido
+              if (data.data.percentage !== undefined && data.data.percentage > 0) {
                 setHistory(prev => {
-                  const newHistory = [...prev, {
+                  const newPoint = {
                     percentage: data.data.percentage,
                     timestamp: data.data.timestamp || new Date().toISOString()
-                  }];
-                  // Mantener solo las últimas 50 lecturas
+                  };
+                  console.log('Agregando punto al historico:', newPoint);
+                  const newHistory = [...prev, newPoint];
+                  // Mantener solo las ultimas 50 lecturas
                   return newHistory.slice(-50);
                 });
               }
@@ -85,20 +91,24 @@ export default function Visualizacion() {
             case 'status':
               setIsMonitoring(data.is_monitoring);
               if (data.data) {
+                console.log('Actualizando datos desde status:', data.data);
                 setTankData(data.data);
               }
               break;
               
             case 'response':
-              console.log(`Respuesta ${data.command}:`, data.message);
+              console.log(`Respuesta ${data.command}:`, data);
               if (data.command === 'start') {
                 setIsMonitoring(data.success);
               }
               break;
               
             case 'history':
-              if (data.data && data.data.length > 0) {
+              if (data.data && Array.isArray(data.data) && data.data.length > 0) {
+                console.log('Historico recibido desde BD:', data.data.length, 'lecturas');
                 setHistory(data.data);
+              } else {
+                console.log('No hay historico en BD');
               }
               break;
               
@@ -111,12 +121,12 @@ export default function Visualizacion() {
       };
 
       ws.onerror = (error) => {
-        console.error('❌ Error WebSocket:', error);
+        console.error('Error WebSocket:', error);
         setConnectionStatus('error');
       };
 
       ws.onclose = () => {
-        console.log('✗ Desconectado del servidor OpenMV');
+        console.log('Desconectado del servidor OpenMV');
         setIsConnected(false);
         setConnectionStatus('disconnected');
         setIsMonitoring(false);
@@ -126,7 +136,7 @@ export default function Visualizacion() {
 
       wsRef.current = ws;
     } catch (error) {
-      console.error('❌ Error al conectar:', error);
+      console.error('Error al conectar:', error);
       setConnectionStatus('error');
       reconnectTimeoutRef.current = setTimeout(connectWebSocket, 3000);
     }
@@ -134,7 +144,10 @@ export default function Visualizacion() {
 
   const drawChart = () => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!canvas) {
+      console.log('Canvas no disponible');
+      return;
+    }
 
     const ctx = canvas.getContext('2d');
     const width = canvas.width;
@@ -155,7 +168,9 @@ export default function Visualizacion() {
       return;
     }
 
-    // Configuración
+    console.log('Dibujando grafica con datos:', history);
+
+    // Configuracion
     const padding = 40;
     const chartWidth = width - padding * 2;
     const chartHeight = height - padding * 2;
@@ -184,7 +199,7 @@ export default function Visualizacion() {
       const y = height - padding - (i / 100 * chartHeight);
       ctx.fillText(`${i}%`, padding - 10, y + 4);
       
-      // Líneas de cuadrícula
+      // Lineas de cuadricula
       ctx.strokeStyle = '#e5e7eb';
       ctx.lineWidth = 1;
       ctx.beginPath();
@@ -193,7 +208,7 @@ export default function Visualizacion() {
       ctx.stroke();
     }
 
-    // Dibujar línea de datos
+    // Dibujar linea de datos
     ctx.strokeStyle = '#2563eb';
     ctx.lineWidth = 2;
     ctx.beginPath();
@@ -230,11 +245,11 @@ export default function Visualizacion() {
       ctx.stroke();
     });
 
-    // Título
+    // Titulo
     ctx.fillStyle = '#111827';
     ctx.font = 'bold 16px Arial';
     ctx.textAlign = 'center';
-    ctx.fillText('Histórico de Nivel (%)', width / 2, 20);
+    ctx.fillText('Historico de Nivel (%)', width / 2, 20);
 
     // Etiquetas de tiempo (solo algunas)
     ctx.fillStyle = '#6b7280';
@@ -260,22 +275,23 @@ export default function Visualizacion() {
 
   const sendCommand = (command) => {
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      console.log('Enviando comando:', command);
       wsRef.current.send(JSON.stringify({ command }));
       return true;
     }
-    console.error('WebSocket no está conectado');
+    console.error('WebSocket no esta conectado');
     return false;
   };
 
   const handleStartMonitoring = () => {
     if (sendCommand('start')) {
-      console.log('📡 Iniciando monitoreo...');
+      console.log('Iniciando monitoreo...');
     }
   };
 
   const handleStopMonitoring = () => {
     if (sendCommand('stop')) {
-      console.log('⏸️ Deteniendo monitoreo...');
+      console.log('Deteniendo monitoreo...');
       setIsMonitoring(false);
     }
   };
@@ -335,7 +351,9 @@ export default function Visualizacion() {
   };
 
   const getTankFillHeight = (percentage) => {
-    return `${Math.min(percentage, 100)}%`;
+    const height = Math.min(Math.max(percentage, 0), 100);
+    console.log('Altura del tanque:', height, '%');
+    return `${height}%`;
   };
 
   const getAlertIcon = (level) => {
@@ -355,6 +373,11 @@ export default function Visualizacion() {
       default: return 'bg-gray-100 border-gray-500 text-gray-900';
     }
   };
+
+  // Log para debug
+  useEffect(() => {
+    console.log('Estado actual del tanque:', tankData);
+  }, [tankData]);
 
   return (
     <div className="w-full min-h-screen bg-gray-100 py-8 px-4 sm:px-6 lg:px-8">
@@ -438,7 +461,7 @@ export default function Visualizacion() {
         {/* Grid principal */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           
-          {/* Visualización del tanque */}
+          {/* Visualizacion del tanque */}
           <div className="lg:col-span-1">
             <div className="bg-white rounded-lg shadow-lg p-6">
               <h2 className="text-xl font-bold text-[#0f3d28] mb-4 text-center">
@@ -466,30 +489,38 @@ export default function Visualizacion() {
                 </div>
               </div>
 
-              {/* Información del nivel */}
+              {/* Informacion del nivel */}
               <div className="mt-6 space-y-3">
                 <div className="text-center">
                   <p className="text-sm text-gray-600 mb-1">Nivel Actual</p>
                   <p className={`text-5xl font-bold ${getLevelColor(tankData.percentage)}`}>
-                    {tankData.percentage}%
+                    {tankData.percentage || 0}%
                   </p>
                 </div>
                 
                 <div className="bg-gray-50 rounded-lg p-4 space-y-2">
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-gray-600">Etiqueta:</span>
-                    <span className="font-semibold text-[#0f3d28]">{tankData.label}</span>
+                    <span className="font-semibold text-[#0f3d28]">{tankData.label || 'Desconocido'}</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-gray-600">FPS:</span>
                     <span className="font-semibold text-[#0f3d28]">
-                      {tankData.fps?.toFixed(1) || 0}
+                      {tankData.fps ? tankData.fps.toFixed(1) : '0.0'}
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-gray-600">Estado:</span>
                     <span className={`font-semibold ${isMonitoring ? 'text-green-600' : 'text-gray-600'}`}>
-                      {isMonitoring ? '🟢 Activo' : '⚪ Inactivo'}
+                      {isMonitoring ? 'Activo' : 'Inactivo'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">Ultima actualizacion:</span>
+                    <span className="font-semibold text-[#0f3d28] text-xs">
+                      {tankData.timestamp 
+                        ? new Date(tankData.timestamp).toLocaleTimeString('es-CO') 
+                        : 'Sin datos'}
                     </span>
                   </div>
                 </div>
@@ -500,11 +531,11 @@ export default function Visualizacion() {
           {/* Panel de datos */}
           <div className="lg:col-span-2 space-y-6">
             
-            {/* Gráfica de histórico */}
+            {/* Grafica de historico */}
             <div className="bg-white rounded-lg shadow-lg p-6">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-bold text-[#0f3d28]">
-                  Histórico de Nivel ({history.length} lecturas)
+                  Historico de Nivel ({history.length} lecturas)
                 </h2>
                 <button
                   onClick={clearHistory}
@@ -521,12 +552,18 @@ export default function Visualizacion() {
                 height={300}
                 className="w-full border border-gray-200 rounded-lg"
               />
+              {history.length === 0 && (
+                <div className="text-center text-gray-500 py-4">
+                  <p className="text-sm">No hay datos historicos disponibles</p>
+                  <p className="text-xs mt-1">Inicia el monitoreo para comenzar a recopilar datos</p>
+                </div>
+              )}
             </div>
 
-            {/* Datos de detección */}
+            {/* Datos de deteccion */}
             <div className="bg-white rounded-lg shadow-lg p-6">
               <h2 className="text-xl font-bold text-[#0f3d28] mb-4">
-                Datos de Detección
+                Datos de Deteccion
               </h2>
               
               {tankData.detection ? (
@@ -566,10 +603,10 @@ export default function Visualizacion() {
               <h3 className="font-bold text-blue-900 mb-2">Instrucciones de uso:</h3>
               <ol className="text-sm text-blue-800 space-y-1 list-decimal list-inside">
                 <li>Conecta la OpenMV Cam RT1062 al puerto USB</li>
-                <li>Ejecuta <code className="bg-blue-100 px-2 py-0.5 rounded">python openmv_server.py</code> en el backend</li>
-                <li>Ejecuta el script de detección en la OpenMV desde OpenMV IDE</li>
-                <li>Haz clic en "Iniciar" para comenzar el monitoreo</li>
-                <li>Los datos se actualizarán automáticamente en tiempo real</li>
+                <li>Ejecuta python openmv_server.py en el backend</li>
+                <li>Ejecuta el script de deteccion en la OpenMV desde OpenMV IDE</li>
+                <li>Haz clic en Iniciar para comenzar el monitoreo</li>
+                <li>Los datos se actualizaran automaticamente en tiempo real</li>
               </ol>
             </div>
           </div>
