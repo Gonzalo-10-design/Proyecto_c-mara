@@ -1,4 +1,3 @@
-// Frontend_camara/src/componentes/Alertas.jsx
 import { useState, useEffect, useRef } from 'react';
 
 export default function Alertas() {
@@ -30,7 +29,8 @@ export default function Alertas() {
         try {
           const data = JSON.parse(event.data);
           
-          if (data.type === 'alert') {
+          // Solo procesar alertas críticas y de advertencia
+          if (data.type === 'alert' && data.data.level !== 'info') {
             addAlert(data.data);
           }
         } catch (error) {
@@ -82,7 +82,6 @@ export default function Alertas() {
     switch(level) {
       case 'critical': return 'fa-exclamation-circle';
       case 'warning': return 'fa-exclamation-triangle';
-      case 'info': return 'fa-info-circle';
       default: return 'fa-bell';
     }
   };
@@ -91,7 +90,6 @@ export default function Alertas() {
     switch(level) {
       case 'critical': return 'bg-red-50 border-red-500';
       case 'warning': return 'bg-yellow-50 border-yellow-500';
-      case 'info': return 'bg-blue-50 border-blue-500';
       default: return 'bg-gray-50 border-gray-500';
     }
   };
@@ -100,7 +98,6 @@ export default function Alertas() {
     switch(level) {
       case 'critical': return 'text-red-900';
       case 'warning': return 'text-yellow-900';
-      case 'info': return 'text-blue-900';
       default: return 'text-gray-900';
     }
   };
@@ -113,8 +110,7 @@ export default function Alertas() {
     return {
       total: alerts.length,
       critical: alerts.filter(a => a.level === 'critical').length,
-      warning: alerts.filter(a => a.level === 'warning').length,
-      info: alerts.filter(a => a.level === 'info').length
+      warning: alerts.filter(a => a.level === 'warning').length
     };
   };
 
@@ -146,7 +142,7 @@ export default function Alertas() {
         </div>
 
         {/* Estadísticas */}
-        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="bg-white rounded-lg shadow-lg p-6 text-center">
             <i className="fas fa-bell text-3xl text-gray-600 mb-2"></i>
             <p className="text-3xl font-bold text-gray-800">{stats.total}</p>
@@ -163,12 +159,6 @@ export default function Alertas() {
             <i className="fas fa-exclamation-triangle text-3xl text-yellow-600 mb-2"></i>
             <p className="text-3xl font-bold text-yellow-800">{stats.warning}</p>
             <p className="text-sm text-yellow-600">Advertencias</p>
-          </div>
-          
-          <div className="bg-blue-50 rounded-lg shadow-lg p-6 text-center border-2 border-blue-200">
-            <i className="fas fa-info-circle text-3xl text-blue-600 mb-2"></i>
-            <p className="text-3xl font-bold text-blue-800">{stats.info}</p>
-            <p className="text-sm text-blue-600">Informativas</p>
           </div>
         </div>
 
@@ -208,17 +198,6 @@ export default function Alertas() {
               >
                 <i className="fas fa-exclamation-triangle mr-2"></i>
                 Advertencias ({stats.warning})
-              </button>
-              <button
-                onClick={() => setFilterLevel('info')}
-                className={`px-4 py-2 rounded-lg font-medium transition duration-200 ${
-                  filterLevel === 'info' 
-                    ? 'bg-blue-600 text-white' 
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                <i className="fas fa-info-circle mr-2"></i>
-                Info ({stats.info})
               </button>
             </div>
             
@@ -317,10 +296,6 @@ export default function Alertas() {
                 <li className="flex items-start gap-2">
                   <i className="fas fa-exclamation-triangle text-yellow-600 mt-1"></i>
                   <span><strong>Advertencias:</strong> Nivel al 25% - Monitoreo recomendado</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <i className="fas fa-info-circle text-blue-600 mt-1"></i>
-                  <span><strong>Informativas:</strong> Sin detección o cambios en el sistema</span>
                 </li>
               </ul>
             </div>

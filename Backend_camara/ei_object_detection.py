@@ -129,4 +129,4 @@ while(True):
     print("")  # Línea en blanco para separar frames
     
     # Pequeña pausa para evitar sobrecarga
-    time.sleep_ms(10000) # 10 segundos entre capturas
+    time.sleep_ms(1000) # 1 segundos entre capturas

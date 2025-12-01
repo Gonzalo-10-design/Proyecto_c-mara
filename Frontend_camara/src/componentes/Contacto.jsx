@@ -6,7 +6,7 @@ export default function Contacto() {
           ¿Tienes alguna pregunta? ¡Contáctanos!
         </h1>
         <p className="text-lg sm:text-xl text-gray-700 mb-6">
-          Si necesitas más información sobre nuestras convocatorias, subvenciones o cualquier otro servicio, no dudes en ponerte en contacto con nosotros. Estamos aquí para ayudarte a dar el siguiente paso.
+          Si necesitas más información sobre nuestros equipos, soluciones o cualquier otro servicio, no dudes en ponerte en contacto con nosotros. Estamos aquí para ayudarte a dar el siguiente paso.
         </p>
 
         <div className="text-lg sm:text-xl text-gray-700 mb-6">
