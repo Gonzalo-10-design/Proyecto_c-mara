@@ -9,7 +9,7 @@ import sensor, image, time, ml, math, uos, gc
 try:
     sensor.reset()
 except Exception as e:
-    print("✗ Error: no se detectó el sensor de imagen. ¿El módulo de cámara está conectado?")
+    print("Error: no se detectó el sensor de imagen. ¿El módulo de cámara está conectado?")
     print("Detalles:", e)
     # Mantener la placa en un bucle de espera para depuración (no re-lanzar excepción)
     while True:
@@ -23,19 +23,19 @@ sensor.skip_frames(time=2000)             # Esperar estabilización
 
 net = None
 labels = None
-min_confidence = 0.5
+min_confidence = 0.7
 
 # Cargar el modelo entrenado
 try:
     net = ml.Model("trained.tflite", load_to_fb=uos.stat('trained.tflite')[6] > (gc.mem_free() - (64*1024)))
-    print("✓ Modelo cargado exitosamente")
+    print("Modelo cargado exitosamente")
 except Exception as e:
     raise Exception('Failed to load "trained.tflite", did you copy the .tflite and labels.txt file onto the mass-storage device? (' + str(e) + ')')
 
 # Cargar etiquetas
 try:
     labels = [line.rstrip('\n') for line in open("labels.txt")]
-    print("✓ Etiquetas cargadas:", labels)
+    print("Etiquetas cargadas:", labels)
 except Exception as e:
     raise Exception('Failed to load "labels.txt", did you copy the .tflite and labels.txt file onto the mass-storage device? (' + str(e) + ')')
 
@@ -69,7 +69,7 @@ def fomo_post_process(model, inputs, outputs):
     for i in range(oc):
         img = image.Image(outputs[0][0, :, :, i] * 255)
         blobs = img.find_blobs(
-            threshold_list, x_stride=1, y_stride=1, area_threshold=1, pixels_threshold=1
+            threshold_list, x_stride=3, y_stride=3, area_threshold=3, pixels_threshold=3
         )
         for b in blobs:
             rect = b.rect()
@@ -84,8 +84,8 @@ def fomo_post_process(model, inputs, outputs):
             l[i].append((x, y, w, h, score))
     return l
 
-print("✓ Sistema iniciado - Esperando detecciones...")
-print("✓ Modo: GRAYSCALE")
+print("Sistema iniciado - Esperando detecciones...")
+print("Modo: GRAYSCALE")
 print("=" * 50)
 
 clock = time.clock()
@@ -129,4 +129,4 @@ while(True):
     print("")  # Línea en blanco para separar frames
     
     # Pequeña pausa para evitar sobrecarga
-    time.sleep_ms(1000) # 1 segundos entre capturas
+    time.sleep_ms(500) # 1 segundos entre capturas

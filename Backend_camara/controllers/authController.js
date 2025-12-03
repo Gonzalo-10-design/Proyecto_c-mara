@@ -41,7 +41,7 @@ export const register = async (req, res) => {
           });
         }
         
-        console.log(`✓ Usuario registrado: ${username}`);
+        console.log(`Usuario registrado: ${username}`);
         res.status(201).json({ 
           message: 'Usuario registrado exitosamente',
           userId: this.lastID 
@@ -100,7 +100,7 @@ export const login = (req, res) => {
           { expiresIn: '24h' }
         );
 
-        console.log(`✓ Login exitoso para: ${username}`);
+        console.log(`Login exitoso para: ${username}`);
 
         res.json({
           message: 'Login exitoso',

@@ -21,7 +21,7 @@ export default function Alertas() {
       const ws = new WebSocket('ws://localhost:8765');
       
       ws.onopen = () => {
-        console.log('✓ Conectado al servidor de alertas');
+        console.log('Conectado al servidor de alertas');
         setIsConnected(true);
       };
 

@@ -247,9 +247,9 @@ class OpenMVServer:
             self.alerts_sent.discard('no_detection')
         
         # Resetear alertas cuando baje del umbral
-        if percentage < 23:
+        if percentage < 25:
             self.alerts_sent.discard('25%')
-        if percentage < 95:
+        if percentage < 100:
             self.alerts_sent.discard('100%')
         
         return alerts

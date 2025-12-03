@@ -563,7 +563,7 @@ export default function Visualizacion() {
               <ol className="text-sm text-blue-800 space-y-1 list-decimal list-inside">
                 <li>Conecta la cámara al puerto USB</li>
                 <li>Ejecuta <code className="bg-blue-100 px-2 py-0.5 rounded">python openmv_server.py</code> en el backend</li>
-                <li>Ejecuta el script de detección en la OpenMV desde OpenMV IDE</li>
+                <li>Ejecuta el script de detección desde Visual Studio Code, hacer click en "connect"-"Run" y proceder a "disconnet"</li>
                 <li>Haz clic en "Iniciar" para comenzar el monitoreo</li>
                 <li>El gráfico mostrará el histórico de niveles desde que iniciaste el monitoreo</li>
               </ol>

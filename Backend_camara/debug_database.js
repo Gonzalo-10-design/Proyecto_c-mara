@@ -22,7 +22,7 @@ const db = new sqlite3.Database(dbPath, (err) => {
     console.error(' Error al conectar con la base de datos:', err);
     process.exit(1);
   } else {
-    console.log('✓ Conectado a la base de datos\n');
+    console.log('Conectado a la base de datos\n');
     runDiagnostics();
   }
 });
@@ -30,10 +30,10 @@ const db = new sqlite3.Database(dbPath, (err) => {
 async function runDiagnostics() {
   
   // 1. Verificar si la tabla existe
-  console.log(' Verificando estructura de la tabla...');
+  console.log('Verificando estructura de la tabla...');
   db.get("SELECT name FROM sqlite_master WHERE type='table' AND name='usuarios'", (err, row) => {
     if (err) {
-      console.error(' Error al verificar tabla:', err);
+      console.error('Error al verificar tabla:', err);
       return;
     }
     
@@ -44,10 +44,10 @@ async function runDiagnostics() {
       return;
     }
     
-    console.log('✓ La tabla "usuarios" existe\n');
+    console.log('La tabla "usuarios" existe\n');
     
     // 2. Mostrar esquema de la tabla
-    console.log(' Esquema de la tabla:');
+    console.log('Esquema de la tabla:');
     db.all("PRAGMA table_info(usuarios)", (err, rows) => {
       if (err) {
         console.error(' Error al obtener esquema:', err);
@@ -76,10 +76,10 @@ function createTable() {
     )
   `, (err) => {
     if (err) {
-      console.error(' Error al crear tabla:', err);
+      console.error('Error al crear tabla:', err);
       process.exit(1);
     }
-    console.log('✓ Tabla creada exitosamente\n');
+    console.log('Tabla creada exitosamente\n');
     checkUsers();
   });
 }
@@ -100,7 +100,7 @@ function checkUsers() {
       return;
     }
     
-    console.log(`✓ Total de usuarios: ${rows.length}\n`);
+    console.log(`Total de usuarios: ${rows.length}\n`);
     
     rows.forEach((user, index) => {
       console.log(`Usuario ${index + 1}:`);
@@ -116,12 +116,12 @@ function checkUsers() {
 }
 
 function verifyPasswordHashes(users) {
-  console.log('4️⃣ Verificando hashes de contraseñas...');
+  console.log('Verificando hashes de contraseñas...');
   
   users.forEach(user => {
     db.get('SELECT password FROM usuarios WHERE id = ?', [user.id], (err, row) => {
       if (err) {
-        console.error(` Error al obtener contraseña de ${user.username}:`, err);
+        console.error(`Error al obtener contraseña de ${user.username}:`, err);
         return;
       }
       
@@ -173,17 +173,17 @@ async function createTestUser() {
           return;
         }
         
-        console.log('✓ Usuario de prueba creado:');
+        console.log('Usuario de prueba creado:');
         console.log(`   Username: ${testUser.username}`);
         console.log(`   Password: ${testUser.password}`);
         console.log(`   Email: ${testUser.email}\n`);
         
-        console.log('🔐 Puedes usar estas credenciales para iniciar sesión\n');
+        console.log('Puedes usar estas credenciales para iniciar sesión\n');
         checkUsers();
       }
     );
   } catch (error) {
-    console.error(' Error al hashear contraseña:', error);
+    console.error('Error al hashear contraseña:', error);
   }
 }
 

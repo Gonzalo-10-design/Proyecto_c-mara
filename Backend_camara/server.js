@@ -63,13 +63,13 @@ app.get('/api/test-db', (req, res) => {
 
 // Manejo de rutas no encontradas
 app.use((req, res) => {
-  console.log(`❌ Ruta no encontrada: ${req.method} ${req.path}`);
+  console.log(`Ruta no encontrada: ${req.method} ${req.path}`);
   res.status(404).json({ error: 'Ruta no encontrada' });
 });
 
 // Manejo de errores global
 app.use((err, req, res, next) => {
-  console.error('❌ Error global:', err);
+  console.error('Error global:', err);
   res.status(500).json({ error: 'Error interno del servidor' });
 });
 
@@ -78,22 +78,22 @@ initDatabase()
   .then(() => {
     app.listen(PORT, () => {
       console.log('\n' + '═'.repeat(50));
-      console.log('║      SERVIDOR BACKEND INICIADO                   ║');
+      console.log('║      SERVIDOR BACKEND INICIADO                      ║');
       console.log('═'.repeat(50));
       console.log(`║  Puerto: ${PORT}                                    ║`);
-      console.log(`║  URL: http://localhost:${PORT}                     ║`);
-      console.log(`║  Ambiente: ${process.env.NODE_ENV || 'development'}                        ║`);
+      console.log(`║  URL: http://localhost:${PORT}                      ║`);
+      console.log(`║  Ambiente: ${process.env.NODE_ENV || 'development'} ║`);
       console.log('═'.repeat(50));
-      console.log('\n📡 Rutas disponibles:');
+      console.log('\n Rutas disponibles:');
       console.log(`   POST http://localhost:${PORT}/api/register`);
       console.log(`   POST http://localhost:${PORT}/api/login`);
       console.log(`   GET  http://localhost:${PORT}/api/profile`);
       console.log(`   GET  http://localhost:${PORT}/health`);
       console.log(`   GET  http://localhost:${PORT}/api/test-db\n`);
-      console.log('✓ Esperando peticiones...\n');
+      console.log('Esperando peticiones...\n');
     });
   })
   .catch((err) => {
-    console.error('❌ Error al inicializar la base de datos:', err);
+    console.error('Error al inicializar la base de datos:', err);
     process.exit(1);
   });
